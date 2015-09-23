@@ -82,13 +82,17 @@ shell.on("gl-init", function () {
 		uniform mat4 normalMatrix;
 		uniform vec4 color;
 		uniform vec3 lightColor;
-		uniform vec3 lightDirection;
+		// uniform vec3 lightDirection;
+		uniform vec3 pointLightPosition;
 
 		varying vec4 v_color;
 
 		void main() {
 			gl_Position = projection * view * model * vec4(position, 1.0);
 			vec3 nnormal = normalize(vec3(normalMatrix * vec4(normal, 1.0)));
+
+			vec4 vertexPosition = model * vec4(position, 1.0);
+			vec3 lightDirection = normalize(pointLightPosition - vec3(vertexPosition));
 			float nDotL = max(dot(lightDirection, nnormal), 0.0);
 			vec3 amb = ambient * color.rgb;
 			vec3 diffuse = lightColor * vec3(color) * nDotL;
@@ -114,10 +118,12 @@ let wave = 0;
 let lightDirection = [0.5, 3.0, 10.0];
 let lightDirectionNorm = [];
 
+let pointLightPosition = [0, 3, 4];
+
 shell.on("gl-render", () => {
 
 	let GL = shell.gl;
-	lightDirection = [0.5+wave, 3.0, 10.0];
+	lightDirection = [0.5, 3.0, 0.0+wave/100];
 	vec3.normalize(lightDirectionNorm, lightDirection);
 	hexObj.bind(hexShader);
 	hexShader.uniforms.projection = mat4.perspective(scratch, Math.PI/4.0, shell.width/shell.height, 0.1, 1000.0);
@@ -150,7 +156,8 @@ shell.on("gl-render", () => {
 	boxShader.uniforms.color = [1,0,1,1];
 	boxShader.uniforms.ambient = [0.2, 0.2, 0.2];
 	boxShader.uniforms.lightColor = [1.0, 1.0, 1.0];
-	boxShader.uniforms.lightDirection = lightDirectionNorm;
+	// boxShader.uniforms.lightDirection = lightDirectionNorm;
+	boxShader.uniforms.pointLightPosition = pointLightPosition;
 	boxObj.draw();
 
 	wave++;
