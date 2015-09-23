@@ -5,11 +5,13 @@ import glMatrix from "gl-matrix";
 import attachCamera from "game-shell-orbit-camera";
 import createTexture from "gl-texture2d";
 
+var fs = require("fs");
+
 let mat4 = glMatrix.mat4;
 let vec3 = glMatrix.vec3;
 
-import hex from "./hex";
-import box from "./box";
+import hex from "./gl/geometry/hex";
+import box from "./gl/geometry/box";
 
 let shell = glNow({
 	clearColor: [0.0, 0.0, 0.0, 0.0]
@@ -31,86 +33,27 @@ shell.on("gl-init", function () {
 
 	let img = new Image();
 	img.onload = function () {
-		tex = createTexture(GL, img, GL.RGBA)
+		tex = createTexture(GL, img, GL.RGBA);
 	};
 	img.src = "/img/foursquare.png";
 
-	hexShader = createShader(GL,`
-		attribute vec3 position;
-		attribute vec2 texcoord0;
-
-		uniform mat4 model;
-		uniform mat4 projection;
-		uniform mat4 view;
-		uniform vec4 color;
-
-		varying vec2 v_tex0;
-		varying vec4 v_color;
-
-		void main() {
-			vec4 pos = projection * view * model * vec4(position, 1.0);
-			gl_Position = pos;
-			v_tex0 = texcoord0;
-			v_color = color;
-		}
-	`,`
-		precision highp float;
-
-		varying vec2 v_tex0;
-		uniform sampler2D texture0;
-
-		varying vec4 v_color;
-
-		void main() {
-			gl_FragColor = texture2D(texture0,  v_tex0);
-		}
-	`);
+	// TODO: Make shaders load async rather than inline
+	hexShader = createShader(
+		GL,
+		fs.readFileSync("gl/shaders/hex.vert", {encoding: "utf8"}),
+		fs.readFileSync("gl/shaders/hex.frag", {encoding: "utf8"})
+	);
 
 	hexObj = createGeometry(GL);
 	hexObj.attr("positions", hex.positions);
 	hexObj.attr("texcoord0", hex.texcoord0, {size: 2});
 	hexObj.faces(hex.cells, {size: 3});
 
-	boxShader = createShader(GL,`
-		attribute vec3 position;
-		attribute vec3 normal;
-
-		uniform mat4 model;
-		uniform mat4 projection;
-		uniform mat4 view;
-		uniform mat4 normalMatrix;
-		uniform vec4 color;
-
-		varying vec3 v_normal;
-		varying vec3 v_position;
-		varying vec4 v_color;
-
-		void main() {
-			gl_Position = projection * view * model * vec4(position, 1.0);
-			v_position = vec3(model * vec4(position, 1.0));
-			v_normal = normalize(vec3(normalMatrix * vec4(normal, 1.0)));
-			v_color = color;
-		}
-	`,`
-		precision highp float;
-
-		uniform vec3 ambient;
-		uniform vec3 lightColor;
-		uniform vec3 pointLightPosition;
-
-		varying vec4 v_color;
-		varying vec3 v_normal;
-		varying vec3 v_position;
-
-		void main() {
-			vec3 normal = normalize(v_normal);
-			vec3 lightDirection = normalize(pointLightPosition - v_position);
-			float nDotL = max(dot(lightDirection, normal), 0.0);
-			vec3 diffuse = lightColor * v_color.rgb * nDotL;
-			vec3 amb = ambient * v_color.rgb;
-			gl_FragColor = vec4(diffuse + amb, v_color.a);
-		}
-	`);
+	boxShader = createShader(
+		GL,
+		fs.readFileSync("gl/shaders/box.vert", {encoding: "utf8"}),
+		fs.readFileSync("gl/shaders/box.frag", {encoding: "utf8"})
+	);
 
 	boxObj = createGeometry(GL)
 		.attr("position", box.positions)
@@ -138,11 +81,9 @@ shell.on("gl-render", () => {
 			mat4.identity(model);
 			mat4.identity(scratch);
 			mat4.translate(model, scratch, [(10-x*2+offset), (10-y*1.5), 0.0]);
-			//tex.bind();
 			hexShader.uniforms.model = model;
 			hexShader.uniforms.color = [x/100, y/100, x/100, 1.0];
 			hexObj.draw();
-
 		}
 	}
 	hexObj.unbind();
