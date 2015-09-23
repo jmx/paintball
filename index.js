@@ -74,37 +74,41 @@ shell.on("gl-init", function () {
 	boxShader = createShader(GL,`
 		attribute vec3 position;
 		attribute vec3 normal;
-		uniform vec3 ambient;
 
 		uniform mat4 model;
 		uniform mat4 projection;
 		uniform mat4 view;
 		uniform mat4 normalMatrix;
 		uniform vec4 color;
-		uniform vec3 lightColor;
-		// uniform vec3 lightDirection;
-		uniform vec3 pointLightPosition;
 
+		varying vec3 v_normal;
+		varying vec3 v_position;
 		varying vec4 v_color;
 
 		void main() {
 			gl_Position = projection * view * model * vec4(position, 1.0);
-			vec3 nnormal = normalize(vec3(normalMatrix * vec4(normal, 1.0)));
-
-			vec4 vertexPosition = model * vec4(position, 1.0);
-			vec3 lightDirection = normalize(pointLightPosition - vec3(vertexPosition));
-			float nDotL = max(dot(lightDirection, nnormal), 0.0);
-			vec3 amb = ambient * color.rgb;
-			vec3 diffuse = lightColor * vec3(color) * nDotL;
-			v_color = vec4(diffuse + amb, color.a);
+			v_position = vec3(model * vec4(position, 1.0));
+			v_normal = normalize(vec3(normalMatrix * vec4(normal, 1.0)));
+			v_color = color;
 		}
 	`,`
 		precision highp float;
 
+		uniform vec3 ambient;
+		uniform vec3 lightColor;
+		uniform vec3 pointLightPosition;
+
 		varying vec4 v_color;
+		varying vec3 v_normal;
+		varying vec3 v_position;
 
 		void main() {
-			gl_FragColor = v_color;
+			vec3 normal = normalize(v_normal);
+			vec3 lightDirection = normalize(pointLightPosition - v_position);
+			float nDotL = max(dot(lightDirection, normal), 0.0);
+			vec3 diffuse = lightColor * v_color.rgb * nDotL;
+			vec3 amb = ambient * v_color.rgb;
+			gl_FragColor = vec4(diffuse + amb, v_color.a);
 		}
 	`);
 
@@ -153,7 +157,7 @@ shell.on("gl-render", () => {
 
 	boxShader.uniforms.model = model;
 	boxShader.uniforms.normalMatrix = normalMatrix;
-	boxShader.uniforms.color = [1,0,1,1];
+	boxShader.uniforms.color = [1,1,1,1];
 	boxShader.uniforms.ambient = [0.2, 0.2, 0.2];
 	boxShader.uniforms.lightColor = [1.0, 1.0, 1.0];
 	// boxShader.uniforms.lightDirection = lightDirectionNorm;
